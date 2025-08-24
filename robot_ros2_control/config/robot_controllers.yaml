@@ -1,0 +1,219 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    diff_controller:
+      type: diff_drive_controller/DiffDriveController
+
+    body_forward_position_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    body_forward_velocity_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    body_joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    left_arm_forward_position_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    left_arm_forward_velocity_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    left_arm_joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    left_arm_gripper_controller:
+      type: position_controllers/GripperActionController
+
+    right_arm_forward_position_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    right_arm_forward_velocity_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    right_arm_joint_trajectory_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    right_arm_gripper_controller:
+      type: position_controllers/GripperActionController
+
+diff_controller:
+  ros__parameters:
+    publish_rate: 50.0
+    base_frame_id: body_base_link
+    left_wheel_names: ["body_left_wheel_joint"]
+    right_wheel_names: ["body_right_wheel_joint"]
+    wheel_separation: 0.10
+    wheel_radius: 0.015
+    use_stamped_vel: false
+
+body_forward_position_controller:
+  ros__parameters:
+    joints:
+      - body_joint1
+    interface_name: position
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+
+body_forward_velocity_controller:
+  ros__parameters:
+    joints:
+      - body_joint1
+    interface_name: velocity
+    command_interfaces:
+      - velocity
+    state_interfaces:
+      - velocity
+
+body_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - body_joint1
+    interface_name: position
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+
+    state_publish_rate: 50.0 # Defaults to 50
+    action_monitor_rate: 50.0 # Defaults to 20
+
+    allow_partial_joints_goal: false # Defaults to false
+    constraints:
+      stopped_velocity_tolerance: 0.01 # Defaults to 0.01
+      goal_time: 0.0 # Defaults to 0.0 (start immediately)
+
+left_arm_forward_position_controller:
+  ros__parameters:
+    joints:
+      - arm_left_joint1
+      - arm_left_joint2
+      - arm_left_joint3
+      - arm_left_joint4
+      - arm_left_joint5
+      - arm_left_joint6
+      - arm_left_joint7
+    interface_name: position
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+
+left_arm_forward_velocity_controller:
+  ros__parameters:
+    joints:
+      - arm_left_joint1
+      - arm_left_joint2
+      - arm_left_joint3
+      - arm_left_joint4
+      - arm_left_joint5
+      - arm_left_joint6
+      - arm_left_joint7
+    interface_name: velocity
+    command_interfaces:
+      - velocity
+    state_interfaces:
+      - velocity
+
+left_arm_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - arm_left_joint1
+      - arm_left_joint2
+      - arm_left_joint3
+      - arm_left_joint4
+      - arm_left_joint5
+      - arm_left_joint6
+      - arm_left_joint7
+    interface_name: position
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+
+    state_publish_rate: 50.0 # Defaults to 50
+    action_monitor_rate: 50.0 # Defaults to 20
+
+    allow_partial_joints_goal: false # Defaults to false
+    constraints:
+      stopped_velocity_tolerance: 0.01 # Defaults to 0.01
+      goal_time: 0.0 # Defaults to 0.0 (start immediately)
+
+left_arm_gripper_controller:
+  ros__parameters:
+    joint: hand_left_right_finger_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+
+
+right_arm_forward_position_controller:
+  ros__parameters:
+    joints:
+      - arm_right_joint1
+      - arm_right_joint2
+      - arm_right_joint3
+      - arm_right_joint4
+      - arm_right_joint5
+      - arm_right_joint6
+      - arm_right_joint7
+    interface_name: position
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+
+right_arm_forward_velocity_controller:
+  ros__parameters:
+    joints:
+      - arm_right_joint1
+      - arm_right_joint2
+      - arm_right_joint3
+      - arm_right_joint4
+      - arm_right_joint5
+      - arm_right_joint6
+      - arm_right_joint7
+    interface_name: velocity
+    command_interfaces:
+      - velocity
+    state_interfaces:
+      - velocity
+
+right_arm_joint_trajectory_controller:
+  ros__parameters:
+    joints:
+      - arm_right_joint1
+      - arm_right_joint2
+      - arm_right_joint3
+      - arm_right_joint4
+      - arm_right_joint5
+      - arm_right_joint6
+      - arm_right_joint7
+    interface_name: position
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+
+    state_publish_rate: 50.0 # Defaults to 50
+    action_monitor_rate: 50.0 # Defaults to 20
+
+    allow_partial_joints_goal: false # Defaults to false
+    constraints:
+      stopped_velocity_tolerance: 0.01 # Defaults to 0.01
+      goal_time: 0.0 # Defaults to 0.0 (start immediately)
+
+right_arm_gripper_controller:
+  ros__parameters:
+    joint: hand_right_right_finger_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
