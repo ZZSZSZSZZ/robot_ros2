@@ -76,6 +76,7 @@ def controller_spawner(context: LaunchContext, robot_controller):
     robot_controller_str = context.perform_substitution(robot_controller)
 
     if robot_controller_str == "forward_position_controller":
+        robot_controller_body = "body_forward_position_controller"
         robot_controller_left = "left_arm_forward_position_controller"
         robot_controller_right = "right_arm_forward_position_controller"
     elif robot_controller_str == "joint_trajectory_controller":
