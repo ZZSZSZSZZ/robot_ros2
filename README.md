@@ -16,7 +16,7 @@ $ ros2 launch robot_ros2_control robot.launch.py
 ```bash
 $ ros2 action send_goal /right_arm_joint_trajectory_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory '{trajectory: {joint_names: ["arm_right_joint1"], points: [{positions: [0.5], time_from_start: {sec: 1, nanosec: 0}}]}}'
 ```
-or Open a new terminal
+#### Or open a new terminal
 
 ```bash
 $ python3 src/robot_ros2/send_goal.py
