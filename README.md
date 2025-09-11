@@ -1,23 +1,31 @@
-### Run the following command to install:
+# setup
+
+### Before you begin
+You need to install and test the robot_description
+
+
+## Run the following command to install:
 
 ```bash
-
 $ sudo apt-get install ros-${ROS_DISTRO}-ros2-control ros-${ROS_DISTRO}-ros2-controllers ros-${ROS_DISTRO}-gripper-controllers
 $ cd robot_ws/src
 $ git clone https://github.com/ZZSZSZSZZ/robot_ros2.git
 $ cd ..
 $ colcon build
 $ source install/setup.bash
-$ ros2 launch robot_ros2_control robot.launch.py
 ```
 
-### Run the following command to test:
+## Run the following command to control:
 
+### Start the robot using fake hardware
 ```bash
-$ ros2 action send_goal /right_arm_joint_trajectory_controller/follow_joint_trajectory control_msgs/action/FollowJointTrajectory '{trajectory: {joint_names: ["arm_right_joint1"], points: [{positions: [0.5], time_from_start: {sec: 1, nanosec: 0}}]}}'
+$ ros2 launch robot_ros2_control robot.launch.py use_fake_hardware:=true
 ```
-#### Or open a new terminal
+#### Parameters
+* use_fake_hardware - Use fake hardware instead of real hardware (default: false)
 
+### You can open a new terminal and test it with the following command
 ```bash
+$ cd robot_ws
 $ python3 src/robot_ros2/send_goal.py
 ```
