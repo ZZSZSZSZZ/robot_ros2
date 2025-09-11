@@ -13,15 +13,12 @@ from launch.substitutions import (
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
-def generate_robot_description(context: LaunchContext, description_package, description_file,
-                               use_fake_hardware, right_can_interface, left_can_interface):
+def generate_robot_description(context: LaunchContext, description_package, description_file, use_fake_hardware):
     """Generate robot description using xacro processing."""
 
     description_package_str = context.perform_substitution(description_package)
     description_file_str = context.perform_substitution(description_file)
     use_fake_hardware_str = context.perform_substitution(use_fake_hardware)
-    right_can_interface_str = context.perform_substitution(right_can_interface)
-    left_can_interface_str = context.perform_substitution(left_can_interface)
 
     xacro_path = os.path.join(
         get_package_share_directory(description_package_str),
@@ -32,20 +29,18 @@ def generate_robot_description(context: LaunchContext, description_package, desc
     robot_description = xacro.process_file(
         xacro_path,
         mappings={
-            "use_fake_hardware": use_fake_hardware_str,
-            "right_can_interface": right_can_interface_str,
-            "left_can_interface": left_can_interface_str,
+            "use_fake_hardware": use_fake_hardware_str
         }
     ).toprettyxml(indent="  ")
 
     return robot_description
 
 
-def robot_nodes_spawner(context: LaunchContext, description_package, description_file, use_fake_hardware, controllers_file, right_can_interface, left_can_interface):
+def robot_nodes_spawner(context: LaunchContext, description_package, description_file, use_fake_hardware, controllers_file):
     """Spawn both robot state publisher and control nodes with shared robot description."""
 
     robot_description = generate_robot_description(
-        context, description_package, description_file, use_fake_hardware, right_can_interface, left_can_interface,
+        context, description_package, description_file, use_fake_hardware
     )
 
     controllers_file_str = context.perform_substitution(controllers_file)
@@ -76,7 +71,6 @@ def controller_spawner(context: LaunchContext, robot_controller):
     robot_controller_str = context.perform_substitution(robot_controller)
 
     if robot_controller_str == "forward_position_controller":
-        robot_controller_body = "body_forward_position_controller"
         robot_controller_left = "left_arm_forward_position_controller"
         robot_controller_right = "right_arm_forward_position_controller"
     elif robot_controller_str == "joint_trajectory_controller":
@@ -130,16 +124,6 @@ def generate_launch_description():
             description="Package with the controller's configuration in config folder.",
         ),
         DeclareLaunchArgument(
-            "left_can_interface",
-            default_value="can0",
-            description="CAN interface to use for the left arm.",
-        ),
-        DeclareLaunchArgument(
-            "right_can_interface",
-            default_value="can1",
-            description="CAN interface to use for the right arm.",
-        ),
-        DeclareLaunchArgument(
             "controllers_file",
             default_value="robot_controllers.yaml",
             description="Controllers file(s) to use. Can be a single file or comma-separated list of files.",
@@ -153,8 +137,6 @@ def generate_launch_description():
     robot_controller = LaunchConfiguration("robot_controller")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     controllers_file = LaunchConfiguration("controllers_file")
-    right_can_interface = LaunchConfiguration("right_can_interface")
-    left_can_interface = LaunchConfiguration("left_can_interface")
 
     controllers_file = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config", controllers_file]
@@ -162,8 +144,7 @@ def generate_launch_description():
 
     robot_nodes_spawner_func = OpaqueFunction(
         function=robot_nodes_spawner,
-        args=[description_package, description_file,
-              use_fake_hardware, controllers_file, right_can_interface, left_can_interface]
+        args=[description_package, description_file, use_fake_hardware, controllers_file]
     )
 
     rviz_config_file = PathJoinSubstitution(
