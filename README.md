@@ -3,7 +3,6 @@
 ### Before you begin
 You need to install and test the robot_description
 
-
 ## Run the following command to install:
 
 ```bash
