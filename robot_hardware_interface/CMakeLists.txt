@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.22)
 project(robot_hardware_interface)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -12,6 +12,8 @@ find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 
+find_package(RobotTCP REQUIRED)
+
 add_library(
   robot_hardware_interface
   SHARED
@@ -22,6 +24,11 @@ target_include_directories(
   PUBLIC
   include
 )
+
+target_link_libraries(${PROJECT_NAME}
+  RobotTCP::robot_tcp
+)
+
 ament_target_dependencies(
   robot_hardware_interface
   hardware_interface

@@ -17,6 +17,9 @@
 
 #include <string>
 #include <vector>
+#include <chrono>
+#include <memory>
+#include <robot/robot.hpp>
 
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/handle.hpp"
@@ -53,6 +56,8 @@ public:
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
 private:
+  std::unique_ptr<robot::Robot> robot_;
+
   std::vector<double> pos_commands_;
   std::vector<double> vel_commands_;
   std::vector<double> pos_states_;
