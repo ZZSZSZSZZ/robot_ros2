@@ -15,27 +15,30 @@ namespace robot_hardware_interface {
             return CallbackReturn::ERROR;
         }
 
-        // 从hardware_info的joints[i].parameters中读取offset和multiplier
-        for (size_t i = 0; i < info.joints.size(); i++) {
-            const auto &joint = info.joints[i];
-
-            auto it_offset = joint.parameters.find("offset");
-            if (it_offset != joint.parameters.end()) {
-                joint_offsets_[i] = std::stod(it_offset->second);
-            }
-
-            auto it_multiplier = joint.parameters.find("multiplier");
-            if (it_multiplier != joint.parameters.end()) {
-                joint_multipliers_[i] = std::stod(it_multiplier->second);
-            }
-        }
-
         // 初始化关节位置数组和速度数组
         const size_t total_joints = info_.joints.size();
-        pos_commands_.resize(total_joints, std::numeric_limits<float>::quiet_NaN());
-        vel_commands_.resize(total_joints, std::numeric_limits<float>::quiet_NaN());
-        pos_states_.resize(total_joints, std::numeric_limits<float>::quiet_NaN());
-        vel_states_.resize(total_joints, std::numeric_limits<float>::quiet_NaN());
+        pos_commands_.resize(total_joints, 0.0);
+        vel_commands_.resize(total_joints, 0.0);
+        pos_states_.resize(total_joints, 0.0);
+        vel_states_.resize(total_joints, 0.0);
+
+        joint_offsets_.resize(total_joints, 0.0);
+        joint_multipliers_.resize(total_joints, 1);
+
+        // 从hardware_info的joints[i].parameters中读取offset和multiplier
+        for (size_t i = 0; i < total_joints; i++) {
+            const auto parameters = info.joints[i].parameters;
+
+            auto offset_it = parameters.find("offset");
+            if (offset_it != parameters.end()) {
+                joint_offsets_[i] = std::stof(offset_it->second);
+            }
+
+            auto multiplier_it = parameters.find("multiplier");
+            if (multiplier_it != parameters.end()) {
+                joint_multipliers_[i] = std::stof(multiplier_it->second);
+            }
+        }
 
         return CallbackReturn::SUCCESS;
     }
@@ -94,26 +97,21 @@ namespace robot_hardware_interface {
         if (robot_->disable_robot()) {
             return CallbackReturn::SUCCESS;
         }
-        return CallbackReturn::ERROR
+        return CallbackReturn::ERROR;
     }
 
     hardware_interface::return_type RobotHardwareInterface::read(
             const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) {
         std::vector <std::vector<float>> pos_;
-//        std::vector <std::vector<double>> pos_states_double_;
 
         if (robot_->read(&pos_)) {
-//            for (const auto &inner_vec_float: pos) {
-//                std::vector<double> inner_vec_double;
-//                // 对内层 vector 进行转换
-//                std::transform(inner_vec_float.begin(), inner_vec_float.end(),
-//                               std::back_inserter(inner_vec_double), // 插入到 inner_vec_double
-//                               [](float val_f) { return static_cast<double>(val_f); }); // Lambda 转换
-//                pos_states_double_.push_back(inner_vec_double);
-//            }
-
-            for (auto i = 0ul; i < pos_states_.size(); i++) {
-                pos_states_[i] = joint_multipliers_[i] * pos_[i][1] + joint_offsets_[i];
+            for (auto i = 0ul; i < pos_.size(); i++) {
+                if (pos_[i][0] == 1553){
+                    pos_states_[i] = static_cast<double>(joint_multipliers_[i] * pos_[i][1] + joint_offsets_[i])/2500;
+                } else{
+                    pos_states_[i] = static_cast<double>(joint_multipliers_[i] * pos_[i][1] + joint_offsets_[i]);
+                }
+                vel_states_[i] = static_cast<double>(pos_[i][2]);
             }
 
             printf("hardware_read\n");
@@ -132,25 +130,29 @@ namespace robot_hardware_interface {
     hardware_interface::return_type RobotHardwareInterface::write(
             const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) {
         std::vector<float> pos_commands_om_;
+        pos_commands_om_.resize(19, 0.0);
 
-        // 使用 std::transform 和一个 lambda 函数进行转换
-//        std::transform(pos_commands_.begin(), pos_commands_.end(),
-//                       std::back_inserter(pos_commands_float_), // 将结果插入到 vec_float 末尾
-//                       [](double d) { return static_cast<float>(d); }); // 转换函数
-
-        for (auto i = 0ul; i < pos_commands_.size(); i++) {
+        for (auto i = 0ul; i < 19; i++) {
             // 将ROS中的命令转换为硬件命令：先减去偏移量，再乘以系数（注意，这里系数可能是-1，表示反转）
-            pos_commands_om_[i] = joint_multipliers_[i] * (pos_commands_[i] - joint_offsets_[i]);
+            pos_commands_om_[i] = static_cast<float>(joint_multipliers_[i] * (pos_commands_[i] - joint_offsets_[i]));
+//            pos_commands_om_[i] = static_cast<float>(pos_commands_[i]);
         }
+
+        std::vector<std::vector<float>> pos_commands_write;
+//        pos_commands_write.resize(2, std::vector<float>(19, 0.0));
+        pos_commands_write.push_back(pos_commands_om_);
+        std::vector<float> floatVec(vel_commands_.begin(), vel_commands_.end());
+        pos_commands_write.push_back(floatVec);
 
         printf("hardware_write\n");
-        for (auto i = 0ul; i < pos_commands_.size(); i++) {
-            printf("%f ", pos_commands_om_[i]);
-            // printf("%f\n", vel_commands_[i]);
+        for (int i = 0; i < 2; ++i) {
+            for (auto j = 0ul; j < pos_commands_.size(); j++) {
+                printf("%f ", pos_commands_write[i][j]);
+            }
+            printf("\n");
         }
-        printf("\n");
 
-        if (robot_->write(pos_commands_om_)) {
+        if (robot_->write(pos_commands_write)) {
             return hardware_interface::return_type::OK;
         }
 

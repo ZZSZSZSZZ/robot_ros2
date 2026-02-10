@@ -58,13 +58,13 @@ public:
 private:
   std::unique_ptr<robot::Robot> robot_;
 
-  std::vector<float> pos_commands_;
-  std::vector<float> vel_commands_;
-  std::vector<float> pos_states_;
-  std::vector<float> vel_states_;
+  std::vector<double> pos_commands_;
+  std::vector<double> vel_commands_;
+  std::vector<double> pos_states_;
+  std::vector<double> vel_states_;
 
   std::vector<float> joint_offsets_;
-  std::vector<float> joint_multipliers_;
+  std::vector<int> joint_multipliers_;
 };
 
 }  // namespace robot_hardware_interface
