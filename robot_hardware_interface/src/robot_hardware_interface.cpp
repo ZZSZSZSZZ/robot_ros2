@@ -197,19 +197,19 @@ namespace robot_hardware_interface {
             const rclcpp::Time & /*time*/, const rclcpp::Duration &period) {
         // 准备写入数据
         const size_t num_joints = info_.joints.size();
-        std::vector <std::vector<float>> write_data(3);
+        std::vector <std::vector<float>> write_data(2);
         write_data[0].resize(num_joints);
         write_data[1].resize(num_joints);
-        write_data[2].resize(num_joints);
 
         for (size_t i = 0; i < num_joints; ++i) {
             write_data[0][i] = static_cast<float>(
                     joint_multipliers_[i] * (pos_commands_[i] - static_cast<double>(joint_offsets_[i])));
-//            write_data[1][i] = static_cast<float>(vel_commands_[i]);
-
-            float t = 20.0f * (write_data[0][i] - pos_states_[i]) + 2.75f * vel_states_[i];
-            write_data[2][i] = t;
+            write_data[1][i] = static_cast<float>(vel_commands_[i]);
         }
+
+        // 计算超时时间
+//        int timeout_ms = static_cast<int>(period.seconds() * 1000 * 0.8);
+//        timeout_ms = std::max(1, std::min(timeout_ms, 100));
 
         if (!robot_->write(write_data)) {
             RCLCPP_WARN_THROTTLE(rclcpp::get_logger("RobotHardwareInterface"),
