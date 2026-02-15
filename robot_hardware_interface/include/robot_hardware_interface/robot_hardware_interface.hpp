@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <thread>
 #include <memory>
 
 #include "hardware_interface/system_interface.hpp"

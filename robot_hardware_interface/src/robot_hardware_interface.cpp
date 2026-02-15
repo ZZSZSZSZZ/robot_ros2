@@ -138,6 +138,8 @@ namespace robot_hardware_interface {
 //            return CallbackReturn::ERROR;
 //        }
 
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
         RCLCPP_INFO(rclcpp::get_logger("RobotHardwareInterface"), "机器人已激活");
         return CallbackReturn::SUCCESS;
     }
@@ -160,7 +162,7 @@ namespace robot_hardware_interface {
             const rclcpp::Time & /*time*/, const rclcpp::Duration &period) {
         std::vector <std::vector<float>> state_data;
 //        const int timeout_ms = std::max(100, static_cast<int>(period.seconds() * 1000 * 0.5));
-        const int timeout_ms = 100;
+        const int timeout_ms = 1000;
 
         if (!robot_->read(&state_data, timeout_ms)) {
             RCLCPP_WARN_THROTTLE(rclcpp::get_logger("RobotHardwareInterface"),
@@ -184,9 +186,7 @@ namespace robot_hardware_interface {
                     pos_states_[i] = static_cast<double>(transformed_value);
                 }
 
-                if (state_data[i].size() >= 3) {
-                    vel_states_[i] = static_cast<double>(state_data[i][2]);
-                }
+                vel_states_[i] = static_cast<double>(state_data[i][2]);
             }
         }
 
@@ -197,27 +197,25 @@ namespace robot_hardware_interface {
             const rclcpp::Time & /*time*/, const rclcpp::Duration &period) {
         // 准备写入数据
         const size_t num_joints = info_.joints.size();
-        std::vector <std::vector<float>> write_data(2);
+        std::vector <std::vector<float>> write_data(3);
         write_data[0].resize(num_joints);
         write_data[1].resize(num_joints);
+        write_data[2].resize(num_joints);
 
         for (size_t i = 0; i < num_joints; ++i) {
             write_data[0][i] = static_cast<float>(
                     joint_multipliers_[i] * (pos_commands_[i] - static_cast<double>(joint_offsets_[i])));
-            write_data[1][i] = static_cast<float>(vel_commands_[i]);
+//            write_data[1][i] = static_cast<float>(vel_commands_[i]);
+
+            float t = 20.0f * (write_data[0][i] - pos_states_[i]) + 2.75f * vel_states_[i];
+            write_data[2][i] = t;
         }
 
-        // 计算超时时间
-//        int timeout_ms = static_cast<int>(period.seconds() * 1000 * 0.8);
-//        timeout_ms = std::max(1, std::min(timeout_ms, 100));
-
-        int timeout_ms = 100;
-
-        if (!robot_->write(write_data, timeout_ms)) {
+        if (!robot_->write(write_data)) {
             RCLCPP_WARN_THROTTLE(rclcpp::get_logger("RobotHardwareInterface"),
                                  *rclcpp::Clock().make_shared(),
                                  1000,
-                                 "写入机器人命令失败 (超时: %dms)", timeout_ms);
+                                 "写入机器人命令失败");
 
             return hardware_interface::return_type::OK;
         }
