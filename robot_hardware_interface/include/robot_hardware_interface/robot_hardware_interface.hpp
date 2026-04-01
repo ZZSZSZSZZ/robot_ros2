@@ -19,7 +19,7 @@
 #include <vector>
 #include <chrono>
 #include <memory>
-#include <robot/robot.hpp>
+#include "robot/robot.hpp"
 
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/handle.hpp"
@@ -28,44 +28,49 @@
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
-namespace robot_hardware_interface
-{
-class RobotHardwareInterface : public hardware_interface::SystemInterface
-{
-public:
-  hardware_interface::CallbackReturn on_init(
-    const hardware_interface::HardwareInfo & info) override;
+namespace robot_hardware_interface {
+    class RobotHardwareInterface : public hardware_interface::SystemInterface {
+    public:
+        hardware_interface::CallbackReturn on_init(
+                const hardware_interface::HardwareInfo &info) override;
 
-  hardware_interface::CallbackReturn on_configure(
-    const rclcpp_lifecycle::State & previous_state) override;
+        hardware_interface::CallbackReturn on_configure(
+                const rclcpp_lifecycle::State &previous_state) override;
 
-  std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
+        std::vector <hardware_interface::StateInterface> export_state_interfaces() override;
 
-  std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
+        std::vector <hardware_interface::CommandInterface> export_command_interfaces() override;
 
-  hardware_interface::CallbackReturn on_activate(
-    const rclcpp_lifecycle::State & previous_state) override;
+        hardware_interface::CallbackReturn on_activate(
+                const rclcpp_lifecycle::State &previous_state) override;
 
-  hardware_interface::CallbackReturn on_deactivate(
-    const rclcpp_lifecycle::State & previous_state) override;
+        hardware_interface::CallbackReturn on_deactivate(
+                const rclcpp_lifecycle::State &previous_state) override;
 
-  hardware_interface::return_type read(
-    const rclcpp::Time & time, const rclcpp::Duration & period) override;
+        hardware_interface::return_type read(
+                const rclcpp::Time &time, const rclcpp::Duration &period) override;
 
-  hardware_interface::return_type write(
-    const rclcpp::Time & time, const rclcpp::Duration & period) override;
+        hardware_interface::return_type write(
+                const rclcpp::Time &time, const rclcpp::Duration &period) override;
 
-private:
-  std::unique_ptr<robot::Robot> robot_;
+    private:
+        std::unique_ptr <robot::Robot> robot_;
+        std::vector <robot::motor::MotorConfig> arm_motor_configs_;
+        std::shared_ptr<robot::ArmComponent> arm_component_;
 
-  std::vector<double> pos_commands_;
-  std::vector<double> vel_commands_;
-  std::vector<double> pos_states_;
-  std::vector<double> vel_states_;
+        size_t total_joints_;
 
-  std::vector<float> joint_offsets_;
-  std::vector<int> joint_multipliers_;
-};
+        std::vector<double> pos_commands_;
+        std::vector<double> vel_commands_;
+        std::vector<double> acc_commands_;
+        std::vector<double> pos_states_;
+        std::vector<double> vel_states_;
+
+        std::vector<float> joint_offsets_;
+        std::vector<int> joint_multipliers_;
+
+        const std::vector<double> def_torque_ = {1, 1, 2, 8, 12, 12, 12};
+    };
 
 }  // namespace robot_hardware_interface
 
