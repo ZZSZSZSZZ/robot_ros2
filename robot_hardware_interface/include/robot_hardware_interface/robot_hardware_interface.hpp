@@ -56,7 +56,13 @@ namespace robot_hardware_interface {
     private:
         std::unique_ptr <robot::Robot> robot_;
         std::vector <robot::motor::MotorConfig> arm_motor_configs_;
+        robot::motor::MotorConfig body_motor_config_;
+        robot::motor::MotorConfig left_wheel_motor_config_;
+        robot::motor::MotorConfig right_wheel_motor_config_;
         std::shared_ptr<robot::ArmComponent> arm_component_;
+        std::shared_ptr<robot::motor::pushrod::PushrodMotor> pushrod_motor_;
+        std::shared_ptr<robot::motor::iws::IwsMotor> iws_motor1_;
+        std::shared_ptr<robot::motor::iws::IwsMotor> iws_motor2_;
 
         size_t total_joints_;
 
