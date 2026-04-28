@@ -49,8 +49,8 @@ diff_controller:
     base_frame_id: body_base_link
     left_wheel_names: [ "body_left_wheel_joint" ]
     right_wheel_names: [ "body_right_wheel_joint" ]
-    wheel_separation: 0.10
-    wheel_radius: 0.015
+    wheel_separation: 0.34
+    wheel_radius: 0.15
     use_stamped_vel: false
 
 body_forward_position_controller:

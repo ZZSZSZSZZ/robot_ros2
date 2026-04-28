@@ -42,24 +42,12 @@ namespace robot_hardware_interface {
             }
         }
 
-//        for (int i = 1; i <= 7; ++i) {
-//            robot::motor::MotorConfig cfg;
-//            cfg.id = i;
-//            cfg.name = "Joint_" + std::to_string(i);
-//            cfg.type = (i <= 4) ? "EYOU_PP11" : "EYOU_PP11L";  // 前4个用 PP11，后3个用 PP11L
-//            cfg.tx_can_id = i;
-//            cfg.rx_can_id = i;
-//            cfg.interface_name = "can0";  // 多接口模式下可指定不同接口
-//            cfg.useStandardFrame(8);
-//
-//            arm_motor_configs_.push_back(cfg);
-//        }
-
-        for (int i = 1; i <= 3; ++i) {
+        for (int i = 1; i <= 14; ++i) {
             robot::motor::MotorConfig cfg;
             cfg.id = i;
             cfg.name = "Joint_" + std::to_string(i);
-            cfg.type = (i < 3) ? "EYOU_PP11" : "EYOU_PP11L"; // 前2个用 PP11，后1个用 PP11L
+            cfg.type = ((i >= 1 && i <= 4) || (i >= 8 && i <= 11)) ? "EYOU_PP11L"
+                                                                   : "EYOU_PP11"; // 1-4, 8-11 用 PP11L，其余用 PP11
             cfg.tx_can_id = i;
             cfg.rx_can_id = i;
             cfg.interface_name = "can0";  // 多接口模式下可指定不同接口
@@ -67,6 +55,44 @@ namespace robot_hardware_interface {
 
             arm_motor_configs_.push_back(cfg);
         }
+
+        body_motor_config_.id = 17; // 电机CAN ID
+        body_motor_config_.name = "Joint_17"; // 电机名称
+        body_motor_config_.type = "PUSHROD_YZ_AIM"; // 电机类型
+        body_motor_config_.tx_can_id = body_motor_config_.id; // 发送CAN ID
+        body_motor_config_.rx_can_id = body_motor_config_.id; // 接收CAN ID
+        body_motor_config_.interface_name = "can0";
+        body_motor_config_.useStandardFrame(8); // 顶杆电机使用标准帧
+
+        left_wheel_motor_config_.id = 15;
+        left_wheel_motor_config_.name = "Joint_15";
+        left_wheel_motor_config_.type = "IWS_IWS45L_1D1_350_B_MCAFC";
+        left_wheel_motor_config_.tx_can_id = left_wheel_motor_config_.id;
+        left_wheel_motor_config_.rx_can_id = left_wheel_motor_config_.id;
+        left_wheel_motor_config_.interface_name = "can0";
+        left_wheel_motor_config_.useStandardFrame(8);
+
+        right_wheel_motor_config_.id = 16;
+        right_wheel_motor_config_.name = "Joint_16";
+        right_wheel_motor_config_.type = "IWS_IWS45L_1D1_350_B_MCAFC";
+        right_wheel_motor_config_.tx_can_id = right_wheel_motor_config_.id;
+        right_wheel_motor_config_.rx_can_id = right_wheel_motor_config_.id;
+        right_wheel_motor_config_.interface_name = "can0";
+        right_wheel_motor_config_.useStandardFrame(8);
+
+        left_hand_motor_config_.id = 18;
+        left_hand_motor_config_.name = "Joint_18";
+        left_hand_motor_config_.type = "LINGZU_RS05";  // 使用已定义的电机类型
+        left_hand_motor_config_.tx_can_id = left_hand_motor_config_.id;
+        left_hand_motor_config_.rx_can_id = left_hand_motor_config_.id;
+        left_hand_motor_config_.useExtendedFrame(8);  // 灵足电机使用扩展帧
+
+        right_hand_motor_config_.id = 19;
+        right_hand_motor_config_.name = "Joint_19";
+        right_hand_motor_config_.type = "LINGZU_RS05";  // 使用已定义的电机类型
+        right_hand_motor_config_.tx_can_id = right_hand_motor_config_.id;
+        right_hand_motor_config_.rx_can_id = right_hand_motor_config_.id;
+        right_hand_motor_config_.useExtendedFrame(8);  // 灵足电机使用扩展帧
 
         return CallbackReturn::SUCCESS;
     }
@@ -84,12 +110,30 @@ namespace robot_hardware_interface {
 
         robot_ = std::make_unique<robot::Robot>("can0", options);
 
+        robot::motor::iws::IwsFactory::registerMotorType();
+        robot::motor::pushrod::PushrodFactory::registerMotorType();
+        robot::motor::lingzu::LingzuFactory::registerMotorType();
+
         // 硬件实例化
         auto result = robot_->initialize();
         if (result.isError()) return CallbackReturn::ERROR;
 
-        arm_component_ = robot_->createArmComponent("LeftArm", arm_motor_configs_);
+        arm_component_ = robot_->createArmComponent("Arm", arm_motor_configs_);
         if (!arm_component_) return CallbackReturn::ERROR;
+
+        pushrod_motor_ = robot::motor::pushrod::PushrodFactory::createMotor(body_motor_config_);
+        iws_motor1_ = robot::motor::iws::IwsFactory::createMotor(left_wheel_motor_config_);
+        iws_motor2_ = robot::motor::iws::IwsFactory::createMotor(right_wheel_motor_config_);
+        left_hand_motor_ = robot::motor::lingzu::LingzuFactory::createMotor(left_hand_motor_config_);
+        right_hand_motor_ = robot::motor::lingzu::LingzuFactory::createMotor(right_hand_motor_config_);
+
+        auto manager = robot_->getMotorManager();
+
+        manager->addMotor(pushrod_motor_);
+        manager->addMotor(iws_motor1_);
+        manager->addMotor(iws_motor2_);
+        manager->addMotor(left_hand_motor_);
+        manager->addMotor(right_hand_motor_);
 
         return CallbackReturn::SUCCESS;
     }
@@ -149,15 +193,9 @@ namespace robot_hardware_interface {
 
         std::unordered_map <uint32_t, robot::motor::MotorState> states = robot_->getAllMotorState();
 
-//        for (size_t i = 0; i < total_joints_; i++) {
-//            pos_states_[i] = static_cast<double>(joint_multipliers_[i] * states[i].position + joint_offsets_[i]);
-//            vel_states_[i] = static_cast<double>(states[i].velocity);
-//        }
-
-        for (int i = 0; i < states.size(); i++) {
-            robot::motor::MotorState state = states.at(i + 1);
-            pos_states_[i] = joint_multipliers_[i] * state.position + joint_offsets_[i];
-            vel_states_[i] = state.velocity;
+        for (size_t i = 0; i < 19; i++) {
+            pos_states_[i] = static_cast<double>(joint_multipliers_[i] * states[i + 1].position + joint_offsets_[i]);
+            vel_states_[i] = static_cast<double>(states[i + 1].velocity);
         }
 
         printf("hardware_read\n");
@@ -172,29 +210,34 @@ namespace robot_hardware_interface {
     hardware_interface::return_type RobotHardwareInterface::write(
             const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) {
         std::vector <robot::PositionParam> position_param;
-//        position_param.reserve(total_joints_);
-        position_param.resize(3);
+        position_param.resize(14);
 
-        for (int i = 0; i < 3; i++) { //TODO 注意循环次数
+        for (int i = 0; i < 14; i++) {
             // 将ROS中的命令转换为硬件命令：先减去偏移量，再乘以系数（注意，这里系数可能是-1，表示反转）
             double position = joint_multipliers_[i] * (pos_commands_[i] - joint_offsets_[i]);
 //            position_param[i] = {position, vel_commands_[i], def_torque_[i], acc_commands_[i]};
-            position_param[i] = {position, vel_commands_[i], 1, 0.5};
+            position_param[i] = {position, vel_commands_[i], def_torque_[i], 0.1};
         }
 
+        arm_component_->setPositions(position_param);
+
+        pushrod_motor_->setPosition(pos_commands_[16], 1000, 1.0);
+        iws_motor2_->setVelocity(vel_commands_[14], 1.0);
+        iws_motor1_->setVelocity(-1 * vel_commands_[15], 1.0);
+        left_hand_motor_->setMIT(pos_commands_[18], 0.1, 0.1, 5, 1);
+        right_hand_motor_->setMIT(pos_commands_[17], 0.1, 0.1, 5, 1);
+
         printf("position_param_position\n");
-        for (auto i = 0ul; i < 3; i++) {
-            printf("%f ", position_param[i].position);
+        for (size_t i = 0; i < 19; i++) {
+            printf("%f ", pos_commands_[i]);
         }
         printf("\n");
 
         printf("position_param_vel\n");
-        for (auto i = 0ul; i < 3; i++) {
-            printf("%f ", position_param[i].velocity);
+        for (size_t i = 0; i < 19; i++) {
+            printf("%f ", vel_commands_[i]);
         }
         printf("\n");
-
-        arm_component_->setPositions(position_param);
 
         return hardware_interface::return_type::OK;
     }
