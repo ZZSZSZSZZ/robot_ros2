@@ -59,10 +59,14 @@ namespace robot_hardware_interface {
         robot::motor::MotorConfig body_motor_config_;
         robot::motor::MotorConfig left_wheel_motor_config_;
         robot::motor::MotorConfig right_wheel_motor_config_;
+        robot::motor::MotorConfig left_hand_motor_config_;
+        robot::motor::MotorConfig right_hand_motor_config_;
         std::shared_ptr<robot::ArmComponent> arm_component_;
         std::shared_ptr<robot::motor::pushrod::PushrodMotor> pushrod_motor_;
         std::shared_ptr<robot::motor::iws::IwsMotor> iws_motor1_;
         std::shared_ptr<robot::motor::iws::IwsMotor> iws_motor2_;
+        std::shared_ptr<robot::motor::lingzu::LingzuMotor> left_hand_motor_;
+        std::shared_ptr<robot::motor::lingzu::LingzuMotor> right_hand_motor_;
 
         size_t total_joints_;
 
@@ -75,7 +79,8 @@ namespace robot_hardware_interface {
         std::vector<float> joint_offsets_;
         std::vector<int> joint_multipliers_;
 
-        const std::vector<double> def_torque_ = {1, 1, 2, 8, 12, 12, 12};
+//        const std::vector<double> def_torque_ = {12, 12, 8, 12, 4, 2, 2, 12, 12, 8, 12, 4, 2, 2};
+        const std::vector<double> def_torque_ = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     };
 
 }  // namespace robot_hardware_interface
