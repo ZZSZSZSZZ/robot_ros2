@@ -16,17 +16,19 @@ namespace robot_hardware_interface {
         }
 
         // 初始化关节位置数组和速度数组
-        const size_t total_joints = info_.joints.size();
-        pos_commands_.resize(total_joints, 0.0);
-        vel_commands_.resize(total_joints, 0.0);
-        pos_states_.resize(total_joints, 0.0);
-        vel_states_.resize(total_joints, 0.0);
+        total_joints_ = info_.joints.size();
+        pos_commands_.resize(total_joints_, 0.0);
+        vel_commands_.resize(total_joints_, 0.0);
+        acc_commands_.resize(total_joints_, 0.0);
 
-        joint_offsets_.resize(total_joints, 0.0);
-        joint_multipliers_.resize(total_joints, 1);
+        pos_states_.resize(total_joints_, 0.0);
+        vel_states_.resize(total_joints_, 0.0);
+
+        joint_offsets_.resize(total_joints_, 0.0);
+        joint_multipliers_.resize(total_joints_, 1);
 
         // 从hardware_info的joints[i].parameters中读取offset和multiplier
-        for (size_t i = 0; i < total_joints; i++) {
+        for (size_t i = 0; i < total_joints_; i++) {
             const auto parameters = info.joints[i].parameters;
 
             auto offset_it = parameters.find("offset");
@@ -40,20 +42,81 @@ namespace robot_hardware_interface {
             }
         }
 
+        for (int i = 1; i <= 14; ++i) {
+            robot::motor::MotorConfig cfg;
+            cfg.id = i;
+            cfg.name = "Joint_" + std::to_string(i);
+            cfg.type = ((i >= 1 && i <= 4) || (i >= 8 && i <= 11)) ? "EYOU_PP11L"
+                                                                   : "EYOU_PP11"; // 1-4, 8-11 用 PP11L，其余用 PP11
+            cfg.tx_can_id = i;
+            cfg.rx_can_id = i;
+            cfg.interface_name = "can0";  // 多接口模式下可指定不同接口
+            cfg.useStandardFrame(8);
+
+            arm_motor_configs_.push_back(cfg);
+        }
+
+        body_motor_config_.id = 17; // 电机CAN ID
+        body_motor_config_.name = "Joint_17"; // 电机名称
+        body_motor_config_.type = "PUSHROD_YZ_AIM"; // 电机类型
+        body_motor_config_.tx_can_id = body_motor_config_.id; // 发送CAN ID
+        body_motor_config_.rx_can_id = body_motor_config_.id; // 接收CAN ID
+        body_motor_config_.interface_name = "can0";
+        body_motor_config_.useStandardFrame(8); // 顶杆电机使用标准帧
+
+        left_wheel_motor_config_.id = 15;
+        left_wheel_motor_config_.name = "Joint_15";
+        left_wheel_motor_config_.type = "IWS_IWS45L_1D1_350_B_MCAFC";
+        left_wheel_motor_config_.tx_can_id = left_wheel_motor_config_.id;
+        left_wheel_motor_config_.rx_can_id = left_wheel_motor_config_.id;
+        left_wheel_motor_config_.interface_name = "can0";
+        left_wheel_motor_config_.useStandardFrame(8);
+
+        right_wheel_motor_config_.id = 16;
+        right_wheel_motor_config_.name = "Joint_16";
+        right_wheel_motor_config_.type = "IWS_IWS45L_1D1_350_B_MCAFC";
+        right_wheel_motor_config_.tx_can_id = right_wheel_motor_config_.id;
+        right_wheel_motor_config_.rx_can_id = right_wheel_motor_config_.id;
+        right_wheel_motor_config_.interface_name = "can0";
+        right_wheel_motor_config_.useStandardFrame(8);
+
         return CallbackReturn::SUCCESS;
     }
 
     // 初始化硬件连接
     hardware_interface::CallbackReturn RobotHardwareInterface::on_configure(
             const rclcpp_lifecycle::State & /*previous_state*/) {
+
+        robot::Robot::Options options;
+        options.enable_can_fd = false; // 不使用 CAN FD
+        options.receive_thread_priority = 50; // 接收线程优先级
+        options.status_poll_interval_ms = 0; // 状态轮询间隔 10ms
+        options.enable_background_thread = true; // 启用后台轮询
+        options.skip_poll_if_disabled = true; // 未使能时跳过查询
+
+        robot_ = std::make_unique<robot::Robot>("can0", options);
+
+        robot::motor::iws::IwsFactory::registerMotorType();
+        robot::motor::pushrod::PushrodFactory::registerMotorType();
+
         // 硬件实例化
-        robot_ = std::make_unique<robot::Robot>(8080);
+        auto result = robot_->initialize();
+        if (result.isError()) return CallbackReturn::ERROR;
 
-        if (robot_->init_robot()) {
-            return CallbackReturn::SUCCESS;
-        }
+        arm_component_ = robot_->createArmComponent("Arm", arm_motor_configs_);
+        if (!arm_component_) return CallbackReturn::ERROR;
 
-        return CallbackReturn::ERROR;
+        pushrod_motor_ = robot::motor::pushrod::PushrodFactory::createMotor(body_motor_config_);
+        iws_motor1_ = robot::motor::iws::IwsFactory::createMotor(left_wheel_motor_config_);
+        iws_motor2_ = robot::motor::iws::IwsFactory::createMotor(right_wheel_motor_config_);
+
+        auto manager = robot_->getMotorManager();
+
+        manager->addMotor(pushrod_motor_);
+        manager->addMotor(iws_motor1_);
+        manager->addMotor(iws_motor2_);
+
+        return CallbackReturn::SUCCESS;
     }
 
     std::vector <hardware_interface::StateInterface> RobotHardwareInterface::export_state_interfaces() {
@@ -75,6 +138,8 @@ namespace robot_hardware_interface {
                     info_.joints[i].name, hardware_interface::HW_IF_POSITION, &pos_commands_[i]));
             command_interfaces.emplace_back(hardware_interface::CommandInterface(
                     info_.joints[i].name, hardware_interface::HW_IF_VELOCITY, &vel_commands_[i]));
+            command_interfaces.emplace_back(hardware_interface::CommandInterface(
+                    info_.joints[i].name, hardware_interface::HW_IF_ACCELERATION, &acc_commands_[i]));
         }
 
         return command_interfaces;
@@ -83,80 +148,86 @@ namespace robot_hardware_interface {
     // 使能硬件并向硬件发送读取命令
     hardware_interface::CallbackReturn RobotHardwareInterface::on_activate(
             const rclcpp_lifecycle::State & /*previous_state*/) {
-        if (robot_->enable_robot()) {
-            // 发送读取命令
-            robot_->read_robot();
-            return CallbackReturn::SUCCESS;
-        }
-        return CallbackReturn::ERROR;
+
+        if (!robot_->enableAllMotors()) return CallbackReturn::ERROR;
+//        robot_->enableAllMotors();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        return CallbackReturn::SUCCESS;
     }
 
     // 失能硬件
     hardware_interface::CallbackReturn RobotHardwareInterface::on_deactivate(
             const rclcpp_lifecycle::State & /*previous_state*/) {
-        if (robot_->disable_robot()) {
-            return CallbackReturn::SUCCESS;
-        }
-        return CallbackReturn::ERROR;
+
+        if (!robot_->disableAllMotors()) return CallbackReturn::ERROR;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        robot_->shutdown();
+
+        return CallbackReturn::SUCCESS;
     }
 
     hardware_interface::return_type RobotHardwareInterface::read(
             const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) {
-        std::vector <std::vector<float>> pos_;
 
-        if (robot_->read(&pos_)) {
-            for (auto i = 0ul; i < pos_.size(); i++) {
-                if (pos_[i][0] == 1553){
-                    pos_states_[i] = static_cast<double>(joint_multipliers_[i] * pos_[i][1] + joint_offsets_[i])/2500;
-                } else{
-                    pos_states_[i] = static_cast<double>(joint_multipliers_[i] * pos_[i][1] + joint_offsets_[i]);
-                }
-                vel_states_[i] = static_cast<double>(pos_[i][2]);
-            }
+        std::unordered_map <uint32_t, robot::motor::MotorState> states = robot_->getAllMotorState();
 
-            printf("hardware_read\n");
-            for (auto i = 0ul; i < pos_states_.size(); i++) {
-                printf("%f ", pos_states_[i]);
-                // printf("%f\n", vel_states_[i]);
-            }
-            printf("\n");
-
-            return hardware_interface::return_type::OK;
+        for (size_t i = 0; i < 19; i++) {
+            pos_states_[i] = static_cast<double>(joint_multipliers_[i] * states[i + 1].position + joint_offsets_[i]);
+            vel_states_[i] = static_cast<double>(states[i + 1].velocity);
         }
 
-        return hardware_interface::return_type::ERROR;
+        printf("hardware_read\n");
+        for (size_t i = 0; i < pos_states_.size(); i++) {
+            printf("%f ", pos_states_[i]);
+        }
+        printf("\n");
+
+        return hardware_interface::return_type::OK;
     }
 
     hardware_interface::return_type RobotHardwareInterface::write(
             const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) {
-        std::vector<float> pos_commands_om_;
-        pos_commands_om_.resize(19, 0.0);
+        std::vector <robot::PositionParam> position_param;
+        position_param.resize(14);
 
-        for (auto i = 0ul; i < 19; i++) {
+        for (int i = 0; i < 14; i++) {
             // 将ROS中的命令转换为硬件命令：先减去偏移量，再乘以系数（注意，这里系数可能是-1，表示反转）
-            pos_commands_om_[i] = static_cast<float>(joint_multipliers_[i] * (pos_commands_[i] - joint_offsets_[i]));
-//            pos_commands_om_[i] = static_cast<float>(pos_commands_[i]);
+            double position = joint_multipliers_[i] * (pos_commands_[i] - joint_offsets_[i]);
+//            position_param[i] = {position, vel_commands_[i], def_torque_[i], acc_commands_[i]};
+            position_param[i] = {position, vel_commands_[i], 2, 0.1};
         }
 
-        std::vector<std::vector<float>> pos_commands_write;
-//        pos_commands_write.resize(2, std::vector<float>(19, 0.0));
-        pos_commands_write.push_back(pos_commands_om_);
-        std::vector<float> floatVec(vel_commands_.begin(), vel_commands_.end());
-        pos_commands_write.push_back(floatVec);
+        arm_component_->setPositions(position_param);
 
-        printf("hardware_write\n");
-        for (int i = 0; i < 2; ++i) {
-            for (auto j = 0ul; j < pos_commands_.size(); j++) {
-                printf("%f ", pos_commands_write[i][j]);
+        for (int i = 15; i < 18; i++) {
+            const std::string &joint_name = info_.joints[i].name;
+
+            if (joint_name == "body_joint1") {
+                pushrod_motor_->setPosition(pos_commands_[i], 1000, 1.0);
+            } else if (joint_name == "body_left_wheel_joint") {
+                iws_motor2_->setVelocity(vel_commands_[i], 1.0);
+            } else if (joint_name == "body_right_wheel_joint") {
+                iws_motor1_->setVelocity(-1 * vel_commands_[i], 1.0);
             }
-            printf("\n");
         }
 
-        if (robot_->write(pos_commands_write)) {
-            return hardware_interface::return_type::OK;
+        printf("position_param_position\n");
+        for (size_t i = 0; i < 19; i++) {
+            printf("%f ", pos_commands_[i]);
         }
+        printf("\n");
 
-        return hardware_interface::return_type::ERROR;
+        printf("position_param_vel\n");
+        for (size_t i = 0; i < 19; i++) {
+            printf("%f ", vel_commands_[i]);
+        }
+        printf("\n");
+
+        return hardware_interface::return_type::OK;
     }
 
 }  // namespace robot_hardware_interface
