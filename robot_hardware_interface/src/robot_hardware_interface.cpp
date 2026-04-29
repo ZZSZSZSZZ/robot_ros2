@@ -224,8 +224,8 @@ namespace robot_hardware_interface {
         pushrod_motor_->setPosition(pos_commands_[16], 1000, 1.0);
         iws_motor2_->setVelocity(vel_commands_[14], 1.0);
         iws_motor1_->setVelocity(-1 * vel_commands_[15], 1.0);
-        left_hand_motor_->setMIT(pos_commands_[18], 0.1, 0.1, 5, 1);
-        right_hand_motor_->setMIT(pos_commands_[17], 0.1, 0.1, 5, 1);
+        left_hand_motor_->setMIT(pos_commands_[17], 1, 0, 5, 0.5);
+        right_hand_motor_->setMIT(pos_commands_[18], 1, 0, 5, 0.5);
 
         printf("position_param_position\n");
         for (size_t i = 0; i < 19; i++) {
